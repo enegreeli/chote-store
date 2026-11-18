@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Plus, Trash2, CheckCircle, AlertCircle, Sparkles } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
+import ImageUploader from '@/components/ImageUploader';
 
 export default function NewProductPage() {
   const router = useRouter();
@@ -34,10 +35,8 @@ export default function NewProductPage() {
   const [isNewRelease, setIsNewRelease] = useState(true);
   const [isPromo, setIsPromo] = useState(false);
 
-  // Photos URLs
-  const [images, setImages] = useState<string[]>([
-    'https://images.unsplash.com/photo-1577223625816-7546f13df25d?q=80&w=800',
-  ]);
+  // Photos (PC, Celular ou Link)
+  const [images, setImages] = useState<string[]>([]);
 
   // Sizes and individual stock
   const [sizes, setSizes] = useState([
@@ -420,43 +419,16 @@ export default function NewProductPage() {
 
         {/* Photos / Gallery */}
         <div className="p-6 bg-white border border-neutral-200 rounded-2xl shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
+          <div>
             <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-900">
-              4. Galeria de Fotos (URLs)
+              4. Fotos do Produto
             </h2>
-            <button
-              type="button"
-              onClick={addImageField}
-              className="text-xs font-bold text-neutral-900 hover:underline flex items-center gap-1"
-            >
-              <Plus className="w-3.5 h-3.5" /> Adicionar Foto
-            </button>
+            <p className="text-[11px] text-neutral-400 mt-0.5">
+              Escolha imagens direto do seu computador ou celular. A foto com a estrela será a capa principal.
+            </p>
           </div>
 
-          <div className="space-y-3">
-            {images.map((img, idx) => (
-              <div key={idx} className="flex items-center gap-2">
-                <span className="text-xs font-bold text-neutral-400 w-6">#{idx + 1}</span>
-                <input
-                  type="url"
-                  required
-                  value={img}
-                  onChange={(e) => updateImage(idx, e.target.value)}
-                  placeholder="https://exemplo.com/foto-manto.jpg"
-                  className="flex-1 px-3 py-2 text-xs border border-neutral-300 rounded-lg outline-none focus:border-black font-mono"
-                />
-                {images.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeImage(idx)}
-                    className="p-2 text-neutral-400 hover:text-rose-600 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
+          <ImageUploader images={images} onChange={setImages} maxImages={8} />
         </div>
 
         {/* Status Switches */}
