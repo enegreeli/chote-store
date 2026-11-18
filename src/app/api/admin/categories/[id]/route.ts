@@ -1,0 +1,62 @@
+import { NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
+import { getCurrentUser, isStaffOrAdmin } from '@/lib/auth';
+
+export async function PUT(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user || !isStaffOrAdmin(user.role)) {
+      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
+    }
+
+    const { id } = params;
+    const { name, slug, description, imageUrl, sortOrder, isActive } = await req.json();
+
+    const category = await prisma.category.update({
+      where: { id },
+      data: {
+        name,
+        slug,
+        description,
+        imageUrl,
+        sortOrder: parseInt(sortOrder, 10) || 0,
+        isActive: !!isActive,
+      },
+    });
+
+    return NextResponse.json({ success: true, category });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || 'Erro ao atualizar categoria' }, { status: 400 });
+  }
+}
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user || !isStaffOrAdmin(user.role)) {
+      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
+    }
+
+    const { id } = params;
+
+    const count = await prisma.product.count({ where: { categoryId: id } });
+    if (count > 0) {
+      return NextResponse.json(
+        { error: `Esta categoria possui ${count} produto(s) vinculado(s). Reatribua os produtos antes de excluir.` },
+        { status: 400 }
+      );
+    }
+
+    await prisma.category.delete({ where: { id } });
+    return NextResponse.json({ success: true, message: 'Categoria excluída com sucesso' });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || 'Erro ao excluir categoria' }, { status: 500 });
+  }
+}
+

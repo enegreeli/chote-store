@@ -1,0 +1,237 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String    @id @default(uuid())
+  name          String
+  email         String    @unique
+  passwordHash  String
+  role          String    @default("CLIENTE") // ADMIN, GERENTE, FUNCIONARIO, CLIENTE
+  phone         String?
+  cpf           String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  addresses     Address[]
+  orders        Order[]
+  wishlist      Wishlist[]
+  stockMovements StockMovement[]
+}
+
+model Address {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipientName String
+  zipCode       String
+  street        String
+  number        String
+  complement    String?
+  neighborhood  String
+  city          String
+  state         String
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+}
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String
+  slug        String    @unique
+  description String?
+  imageUrl    String?
+  sortOrder   Int       @default(0)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  products    Product[]
+}
+
+model Product {
+  id              String            @id @default(uuid())
+  name            String
+  slug            String            @unique
+  sku             String            @unique
+  barcode         String?
+  description     String
+  categoryId      String
+  category        Category          @relation(fields: [categoryId], references: [id])
+  brand           String            @default("") // Grife / Marca (Lacoste, Hugo Boss, Nike, Adidas, Ralph Lauren, Balenciaga, etc.)
+  team            String?           @default("") // Clube ou Seleção quando aplicável
+  country         String?           @default("")
+  season          String?           @default("") // e.g. 2024/2025 ou Coleção Verão/Inverno
+  modelType       String            @default("GRIFE") // GRIFE, JOGADOR, TORCEDOR, RETRO, POLO, CAMISETA, CASACO
+  supplier        String?
+  acquisitionCost Float             @default(0) // Custo de aquisição
+  price           Float             // Preço original / de venda
+  promoPrice      Float?            // Preço promocional opcional
+  isFeatured      Boolean           @default(false)
+  isBestSeller    Boolean           @default(false)
+  isNewRelease    Boolean           @default(false)
+  isPromo         Boolean           @default(false)
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  images          ProductImage[]
+  sizes           ProductSizeStock[]
+  stockMovements  StockMovement[]
+  orderItems      OrderItem[]
+  wishlist        Wishlist[]
+}
+
+model ProductImage {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  isPrimary Boolean  @default(false)
+  order     Int      @default(0)
+}
+
+model ProductSizeStock {
+  id             String          @id @default(uuid())
+  productId      String
+  product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  size           String          // P, M, G, GG, XGG, etc.
+  stock          Int             @default(0)
+  minStock       Int             @default(2) // Alerta de estoque baixo
+  reservedStock  Int             @default(0)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  stockMovements StockMovement[]
+
+  @@unique([productId, size])
+}
+
+model StockMovement {
+  id            String            @id @default(uuid())
+  productId     String
+  product       Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sizeStockId   String?
+  sizeStock     ProductSizeStock? @relation(fields: [sizeStockId], references: [id], onDelete: SetNull)
+  size          String
+  type          String            // ENTRADA, SAIDA_VENDA, SAIDA_AVARIA, SAIDA_PERDA, DEVOLUCAO, AJUSTE
+  quantity      Int
+  previousStock Int
+  newStock      Int
+  reason        String?
+  notes         String?
+  createdById   String?
+  createdBy     User?             @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt     DateTime          @default(now())
+}
+
+model Order {
+  id              String               @id @default(uuid())
+  orderNumber     String               @unique // e.g. #CT-1001
+  userId          String?
+  user            User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  customerName    String
+  customerEmail   String
+  customerPhone   String
+  customerCpf     String
+  shippingAddress String               // Full formatted or JSON
+  zipCode         String
+  city            String
+  state           String
+  status          String               @default("AGUARDANDO_PAGAMENTO") // AGUARDANDO_PAGAMENTO, PAGAMENTO_APROVADO, EM_PREPARACAO, ENVIADO, SAIU_PARA_ENTREGA, ENTREGUE, CANCELADO
+  paymentMethod   String               // PIX, CREDIT_CARD, DEBIT_CARD, MANUAL_WHATSAPP, MANUAL_BALCAO
+  paymentStatus   String               @default("PENDING") // PENDING, APPROVED, FAILED, REFUNDED
+  origin          String               @default("ONLINE") // ONLINE, MANUAL_WHATSAPP, MANUAL_INSTAGRAM, MANUAL_PRESENCIAL
+  subtotal        Float
+  discount        Float                @default(0)
+  shippingCost    Float                @default(0)
+  total           Float
+  couponCode      String?
+  trackingCode    String?
+  notes           String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  items           OrderItem[]
+  statusHistory   OrderStatusHistory[]
+  financialRecord FinancialTransaction[]
+}
+
+model OrderItem {
+  id           String   @id @default(uuid())
+  orderId      String
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id])
+  productName  String
+  productImage String?
+  size         String
+  quantity     Int
+  unitPrice    Float
+  costPrice    Float    @default(0) // Custo de aquisição unitário no momento da compra
+  totalPrice   Float
+}
+
+model OrderStatusHistory {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    String
+  notes     String?
+  changedBy String?
+  createdAt DateTime @default(now())
+}
+
+model FinancialTransaction {
+  id            String    @id @default(uuid())
+  type          String    // RECEITA, DESPESA
+  category      String    // VENDA, RECEBIMENTO, OUTRA_RECEITA, COMPRA_MERCADORIA, FRETE, EMBALAGEM, TAXA_GATEWAY, DESPESA_OPERACIONAL, OUTRA_DESPESA
+  description   String
+  amount        Float
+  date          DateTime  @default(now())
+  status        String    @default("PAGO") // PAGO, PENDENTE
+  paymentMethod String?
+  orderId       String?
+  order         Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  supplier      String?
+  dueDate       DateTime?
+  paidAt        DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Coupon {
+  id               String    @id @default(uuid())
+  code             String    @unique
+  discountType     String    // PERCENTAGE, FIXED, FREE_SHIPPING
+  discountValue    Float
+  minPurchaseValue Float     @default(0)
+  maxUses          Int?
+  usedCount        Int       @default(0)
+  expiresAt        DateTime?
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model Wishlist {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+}
+
+model StoreSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
