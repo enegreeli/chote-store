@@ -22,23 +22,38 @@ export default function AdminProductsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [actionNotice, setActionNotice] = useState<string | null>(null);
 
-  const fetchProducts = () => {
-    setLoading(true);
+  const fetchProducts = (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     const params = new URLSearchParams();
     if (search) params.set('search', search);
     if (statusFilter !== 'all') params.set('status', statusFilter);
 
-    fetch(`/api/admin/products?${params.toString()}`)
+    fetch(`/api/admin/products?${params.toString()}`, { cache: 'no-store' })
       .then((res) => res.json())
       .then((data) => {
         if (data.products) setProducts(data.products);
       })
       .catch(console.error)
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!isSilent) setLoading(false);
+      });
   };
 
   useEffect(() => {
     fetchProducts();
+
+    // Live background polling every 5 seconds
+    const interval = setInterval(() => {
+      fetchProducts(true);
+    }, 5000);
+
+    const onFocus = () => fetchProducts(true);
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
   }, [search, statusFilter]);
 
   const handleDuplicate = async (id: string, name: string) => {
@@ -82,7 +97,13 @@ export default function AdminProductsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-neutral-200">
         <div>
-          <span className="text-xs font-bold uppercase tracking-widest text-neutral-400">Catálogo de Produtos</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-widest text-neutral-400">Catálogo de Produtos</span>
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-[10px] font-bold text-emerald-800">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Tempo Real
+            </span>
+          </div>
           <h1 className="text-2xl font-black text-neutral-900 tracking-tight">Gerenciamento de Produtos</h1>
           <p className="text-xs text-neutral-500 mt-0.5">
             Cadastre novos mantos, configure preços, custos de aquisição e fotos da galeria.

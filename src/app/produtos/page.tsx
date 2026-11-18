@@ -43,31 +43,50 @@ function CatalogContent() {
 
   // Fetch Products with filters
   useEffect(() => {
-    setLoading(true);
-    const params = new URLSearchParams();
+    const fetchCatalog = (isSilent = false) => {
+      if (!isSilent) setLoading(true);
+      const params = new URLSearchParams();
 
-    if (selectedCategory) params.set('category', selectedCategory);
-    if (selectedBrand) params.set('brand', selectedBrand);
-    if (selectedTeam) params.set('team', selectedTeam);
-    if (selectedCountry) params.set('country', selectedCountry);
-    if (selectedSeason) params.set('season', selectedSeason);
-    if (selectedModel) params.set('modelType', selectedModel);
-    if (selectedSize) params.set('size', selectedSize);
-    if (availableOnly) params.set('availableOnly', 'true');
-    if (promoOnly) params.set('promo', 'true');
-    if (newOnly) params.set('newRelease', 'true');
-    if (bestOnly) params.set('bestSeller', 'true');
-    if (searchQuery) params.set('q', searchQuery);
-    if (maxPrice) params.set('maxPrice', maxPrice);
-    if (sort) params.set('sort', sort);
+      if (selectedCategory) params.set('category', selectedCategory);
+      if (selectedBrand) params.set('brand', selectedBrand);
+      if (selectedTeam) params.set('team', selectedTeam);
+      if (selectedCountry) params.set('country', selectedCountry);
+      if (selectedSeason) params.set('season', selectedSeason);
+      if (selectedModel) params.set('modelType', selectedModel);
+      if (selectedSize) params.set('size', selectedSize);
+      if (availableOnly) params.set('availableOnly', 'true');
+      if (promoOnly) params.set('promo', 'true');
+      if (newOnly) params.set('newRelease', 'true');
+      if (bestOnly) params.set('bestSeller', 'true');
+      if (searchQuery) params.set('q', searchQuery);
+      if (maxPrice) params.set('maxPrice', maxPrice);
+      if (sort) params.set('sort', sort);
 
-    fetch(`/api/products?${params.toString()}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.products) setProducts(data.products);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+      fetch(`/api/products?${params.toString()}`, { cache: 'no-store' })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.products) setProducts(data.products);
+        })
+        .catch(console.error)
+        .finally(() => {
+          if (!isSilent) setLoading(false);
+        });
+    };
+
+    fetchCatalog();
+
+    // Live catalog stock & products polling every 6 seconds
+    const interval = setInterval(() => {
+      fetchCatalog(true);
+    }, 6000);
+
+    const onFocus = () => fetchCatalog(true);
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
   }, [
     selectedCategory,
     selectedBrand,

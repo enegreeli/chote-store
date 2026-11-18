@@ -28,6 +28,7 @@ function InventoryManagementContent() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState(initialFilter); // 'all', 'low', 'out'
+  const [lastSync, setLastSync] = useState<Date>(new Date());
 
   // Modal State for Movement
   const [activeModal, setActiveModal] = useState<{
@@ -42,24 +43,44 @@ function InventoryManagementContent() {
   const [submitting, setSubmitting] = useState(false);
   const [modalFeedback, setModalFeedback] = useState<{ text: string; error: boolean } | null>(null);
 
-  const fetchInventory = () => {
-    setLoading(true);
+  const fetchInventory = (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     const params = new URLSearchParams();
     if (filter !== 'all') params.set('filter', filter);
     if (search) params.set('search', search);
 
-    fetch(`/api/admin/inventory?${params.toString()}`)
+    fetch(`/api/admin/inventory?${params.toString()}`, { cache: 'no-store' })
       .then((res) => res.json())
       .then((data) => {
-        if (data.inventory) setInventory(data.inventory);
+        if (data.inventory) {
+          setInventory(data.inventory);
+          setLastSync(new Date());
+        }
       })
       .catch(console.error)
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!isSilent) setLoading(false);
+      });
   };
 
   useEffect(() => {
     fetchInventory();
-  }, [filter, search]);
+
+    // Auto-refresh in real-time every 3.5 seconds
+    const interval = setInterval(() => {
+      if (!activeModal) {
+        fetchInventory(true);
+      }
+    }, 3500);
+
+    const handleFocus = () => fetchInventory(true);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [filter, search, activeModal]);
 
   const openMovementModal = (product: any, sizeObj: any) => {
     setActiveModal({ product, sizeObj });
@@ -114,10 +135,16 @@ function InventoryManagementContent() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-neutral-200">
         <div>
-          <span className="text-xs font-bold uppercase tracking-widest text-neutral-400">Controle Operacional</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-widest text-neutral-400">Controle Operacional</span>
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-[10px] font-bold text-emerald-800">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Tempo Real
+            </span>
+          </div>
           <h1 className="text-2xl font-black text-neutral-900 tracking-tight">Estoque por Produto e Tamanho</h1>
           <p className="text-xs text-neutral-500 mt-0.5">
-            Gerenciamento individual de unidades (P, M, G, GG), entradas, perdas, avarias e estoque mínimo.
+            Sincronização ao vivo com cada compra, baixa ou cancelamento.
           </p>
         </div>
 

@@ -78,7 +78,16 @@ export async function GET(req: Request) {
       inventory = inventory.filter((i) => i.hasOutOfStock);
     }
 
-    return NextResponse.json({ success: true, count: inventory.length, inventory });
+    return NextResponse.json(
+      { success: true, count: inventory.length, inventory },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      }
+    );
   } catch (error: any) {
     console.error('Inventory list error:', error);
     return NextResponse.json({ error: 'Erro ao carregar estoque' }, { status: 500 });

@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(
   req: Request,
   { params }: { params: { slug: string } }
@@ -40,15 +43,24 @@ export async function GET(
 
     const totalStock = (product.sizes || []).reduce((acc: number, s: any) => acc + (s.stock || 0), 0);
 
-    return NextResponse.json({
-      success: true,
-      product: {
-        ...product,
-        totalStock,
-        isOutOfStock: totalStock <= 0,
+    return NextResponse.json(
+      {
+        success: true,
+        product: {
+          ...product,
+          totalStock,
+          isOutOfStock: totalStock <= 0,
+        },
+        related,
       },
-      related,
-    });
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      }
+    );
   } catch (error: any) {
     console.error('Product detail error:', error);
     return NextResponse.json({ error: 'Erro ao buscar produto' }, { status: 500 });

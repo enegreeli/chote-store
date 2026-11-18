@@ -33,20 +33,39 @@ export default function AdminDashboardPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('30d');
+  const [lastSync, setLastSync] = useState<Date>(new Date());
 
-  const fetchDashboard = () => {
-    setLoading(true);
-    fetch(`/api/admin/dashboard?period=${period}`)
+  const fetchDashboard = (isSilent = false) => {
+    if (!isSilent) setLoading(true);
+    fetch(`/api/admin/dashboard?period=${period}`, { cache: 'no-store' })
       .then((res) => res.json())
       .then((d) => {
-        if (d.success) setData(d);
+        if (d.success) {
+          setData(d);
+          setLastSync(new Date());
+        }
       })
       .catch(console.error)
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!isSilent) setLoading(false);
+      });
   };
 
   useEffect(() => {
     fetchDashboard();
+
+    // Auto refresh dashboard metrics every 5 seconds
+    const interval = setInterval(() => {
+      fetchDashboard(true);
+    }, 5000);
+
+    const handleFocus = () => fetchDashboard(true);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [period]);
 
   if (loading && !data) {
@@ -72,7 +91,13 @@ export default function AdminDashboardPage() {
       {/* Header and Period Filter */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-neutral-200">
         <div>
-          <h1 className="text-2xl font-black text-neutral-900 tracking-tight">Dashboard Geral</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-black text-neutral-900 tracking-tight">Dashboard Geral</h1>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-[10px] font-bold text-emerald-800">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Tempo Real
+            </span>
+          </div>
           <p className="text-xs text-neutral-500 mt-0.5">
             Visão consolidada da operação, estoque, vendas e faturamento da Chote Store.
           </p>

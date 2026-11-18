@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(req: Request) {
   try {
@@ -131,11 +132,20 @@ export async function GET(req: Request) {
       };
     });
 
-    return NextResponse.json({
-      success: true,
-      count: formatted.length,
-      products: formatted,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        count: formatted.length,
+        products: formatted,
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      }
+    );
   } catch (error: any) {
     console.error('Products fetch error:', error);
     return NextResponse.json({ error: 'Erro ao listar produtos' }, { status: 500 });

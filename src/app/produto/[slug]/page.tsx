@@ -41,25 +41,44 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
   // Add to cart feedback
   const [addNotice, setAddNotice] = useState<string | null>(null);
 
-  useEffect(() => {
-    setLoading(true);
-    fetch(`/api/products/${slug}`)
+  const fetchProduct = (isSilent = false) => {
+    if (!isSilent) setLoading(true);
+    fetch(`/api/products/${slug}`, { cache: 'no-store' })
       .then((res) => res.json())
       .then((data) => {
         if (data.product) {
           setProduct(data.product);
-          // auto-select first available size
-          const firstInStock = data.product.sizes?.find((s: any) => s.stock > 0);
-          if (firstInStock) {
-            setSelectedSize(firstInStock.size);
-          }
+          setSelectedSize((prev) => {
+            if (prev) return prev;
+            const firstInStock = data.product.sizes?.find((s: any) => s.stock > 0);
+            return firstInStock ? firstInStock.size : null;
+          });
         }
-        if (data.related) {
+        if (data.related && !isSilent) {
           setRelated(data.related);
         }
       })
       .catch(console.error)
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!isSilent) setLoading(false);
+      });
+  };
+
+  useEffect(() => {
+    fetchProduct();
+
+    // Live stock sync loop every 4 seconds
+    const interval = setInterval(() => {
+      fetchProduct(true);
+    }, 4000);
+
+    const onFocus = () => fetchProduct(true);
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
   }, [slug]);
 
   if (loading) {
@@ -276,9 +295,15 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
           {/* Size Selector with real live stock */}
           <div className="space-y-3 pt-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-neutral-900">
-                Selecione o Tamanho:
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-neutral-900">
+                  Selecione o Tamanho:
+                </span>
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Estoque em Tempo Real
+                </span>
+              </div>
               <button
                 type="button"
                 onClick={() => setShowSizeModal(true)}
