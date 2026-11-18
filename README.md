@@ -120,25 +120,44 @@ Na página de login (`/login`), foram incluídos botões de **preenchimento auto
 
 ---
 
-## 🗄️ Integração com Supabase / PostgreSQL em Produção
+## ⚡ Deploy Instantâneo na Vercel (100% Gratuito e Sem Banco Externo)
 
-O projeto foi construído sobre o **Prisma ORM**, o que torna a migração para **PostgreSQL / Supabase** trivial:
+A loja está pronta para subir na Vercel sem precisar configurar nenhum banco de dados externo (PostgreSQL, Supabase, Neon ou Redis). Ela utiliza um motor de banco interno JSON de alta performance (`data/store_db.json`), com fallback automático para persistência em `/tmp` em ambiente serverless.
 
-1. No arquivo `prisma/schema.prisma`, altere o bloco datasource:
-```prisma
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-```
-2. No arquivo `.env`, adicione sua string de conexão do Supabase ou PostgreSQL:
-```env
-DATABASE_URL="postgresql://postgres:[SUA_SENHA]@db.[SEU_PROJETO].supabase.co:5432/postgres"
-```
-3. Execute o comando de sincronização:
-```bash
-npx prisma db push
-node prisma/seed.js
-```
-O banco PostgreSQL receberá automaticamente todas as tabelas relacionais com chaves estrangeiras e integridade referencial.
+### Como subir na Vercel:
+1. Acesse [vercel.com](https://vercel.com) e faça login com sua conta do GitHub.
+2. Clique em **"Add New..."** ➔ **"Project"**.
+3. Selecione o repositório **`enegreeli/chote-store`**.
+4. Clique em **"Deploy"** (não precisa adicionar nenhuma variável de ambiente obrigatória).
+5. Em menos de 2 minutos seu site estará no ar com domínio grátis `.vercel.app` e SSL automático!
+
+---
+
+## 🔑 Credenciais do Painel Administrativo
+
+O acesso ao Painel Admin é restrito ao dono da loja:
+
+| Campo | Valor |
+| :--- | :--- |
+| **URL de Acesso** | `/login` ou `/admin` |
+| **E-mail** | `chote@store.com` |
+| **Senha** | `chotestore2026` |
+
+*(Os campos iniciam vazios com proteção contra vazamento de credenciais na interface)*
+
+---
+
+## 📸 Upload Direto de Imagens (PC e Celular)
+
+- Você pode selecionar fotos diretamente dos seus arquivos do computador ou da galeria/câmera do celular.
+- **Compressão Automática via Canvas:** O navegador redimensiona e comprime imagens de alta resolução em tempo real (~100KB), mantendo máxima nitidez e carregamento ultrarrápido sem estourar o limite da Vercel.
+- **Organização Visual:** Defina qual foto é a principal com 1 clique, delete e adicione múltiplas fotos simultaneamente. Zero necessidade de serviços pagos de armazenamento como AWS S3 ou Supabase Storage.
+
+---
+
+## 🟢 Sincronização de Estoque e Produtos em Tempo Real
+
+- **Sincronização Ativa Multi-Dispositivo:** O catálogo, página de produto e painel de estoque atualizam automaticamente em segundo plano sem que você precise recarregar a página (F5).
+- **Proteção Anti-Overselling:** Assim que uma unidade é vendida ou atualizada no painel, os botões de tamanho (P, M, G, GG) e a vitrine pública refletem a quantidade real imediatamente, exibindo "Esgotado" caso as unidades acabem.
+- **Indicador Visual:** Badges pulsantes `🟢 Tempo Real` mostram no painel administrativo e na loja que a conexão com o estoque está ativa e sincronizada.
 
