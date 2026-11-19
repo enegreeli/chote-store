@@ -12,6 +12,7 @@ import {
   ExternalLink,
   CheckCircle,
   AlertCircle,
+  Zap,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 
@@ -92,6 +93,73 @@ export default function AdminProductsPage() {
     }
   };
 
+  const handleZeroAllStock = async () => {
+    if (!confirm('ATENÇÃO: Deseja ZERAR O ESTOQUE de TODOS os produtos do catálogo? Todas as quantidades serão definidas como 0.')) {
+      return;
+    }
+    try {
+      const res = await fetch('/api/admin/system/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'zero_all_stock' }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setActionNotice(data.message || 'Todo o estoque foi zerado com sucesso!');
+        fetchProducts();
+        setTimeout(() => setActionNotice(null), 3000);
+      } else {
+        alert(data.error || 'Erro ao zerar estoque');
+      }
+    } catch {
+      alert('Erro ao zerar estoque');
+    }
+  };
+
+  const handleWipeAllProducts = async () => {
+    if (!confirm('PERIGO: Deseja EXCLUIR TODOS OS PRODUTOS do catálogo para começar a cadastrar tudo do zero?')) {
+      return;
+    }
+    try {
+      const res = await fetch('/api/admin/system/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'wipe_products' }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setActionNotice(data.message || 'Catálogo limpo com sucesso! Loja pronta para começar do zero.');
+        fetchProducts();
+        setTimeout(() => setActionNotice(null), 4000);
+      } else {
+        alert(data.error || 'Erro ao limpar catálogo');
+      }
+    } catch {
+      alert('Erro ao limpar catálogo');
+    }
+  };
+
+  const handleZeroProductStock = async (id: string, name: string) => {
+    if (!confirm(`Deseja zerar o estoque do produto "${name}"?`)) return;
+    try {
+      const res = await fetch('/api/admin/system/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'zero_product_stock', productId: id }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setActionNotice(data.message || `Estoque de "${name}" zerado!`);
+        fetchProducts();
+        setTimeout(() => setActionNotice(null), 3000);
+      } else {
+        alert(data.error || 'Erro ao zerar estoque');
+      }
+    } catch {
+      alert('Erro ao zerar estoque');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -110,12 +178,28 @@ export default function AdminProductsPage() {
           </p>
         </div>
 
-        <Link
-          href="/admin/produtos/novo"
-          className="px-4 py-2 bg-neutral-900 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-black flex items-center gap-1.5 transition-colors shadow-sm self-start sm:self-auto"
-        >
-          <Plus className="w-3.5 h-3.5" /> Cadastrar Produto
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handleZeroAllStock}
+            className="px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+            title="Define todas as quantidades de estoque de todos os produtos como 0"
+          >
+            <Zap className="w-3.5 h-3.5 text-amber-600" /> Zerar Estoques
+          </button>
+          <button
+            onClick={handleWipeAllProducts}
+            className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+            title="Exclui todos os produtos do catálogo para começar a cadastrar do zero"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-rose-600" /> Limpar Catálogo (Zerar Produtos)
+          </button>
+          <Link
+            href="/admin/produtos/novo"
+            className="px-4 py-2 bg-neutral-900 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-black flex items-center gap-1.5 transition-colors shadow-sm self-start sm:self-auto"
+          >
+            <Plus className="w-3.5 h-3.5" /> Cadastrar Produto
+          </Link>
+        </div>
       </div>
 
       {actionNotice && (
@@ -237,6 +321,13 @@ export default function AdminProductsPage() {
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
                         </Link>
+                        <button
+                          onClick={() => handleZeroProductStock(p.id, p.name)}
+                          className="p-1 text-amber-600 hover:text-amber-800 transition-colors"
+                          title="Zerar estoque deste produto"
+                        >
+                          <Zap className="w-3.5 h-3.5" />
+                        </button>
                         <Link
                           href={`/admin/produtos/${p.id}`}
                           className="p-1 text-neutral-600 hover:text-black transition-colors"
@@ -254,7 +345,7 @@ export default function AdminProductsPage() {
                         <button
                           onClick={() => handleDelete(p.id, p.name)}
                           className="p-1 text-neutral-400 hover:text-rose-600 transition-colors"
-                          title="Excluir ou arquivar"
+                          title="Excluir produto definitivamente"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>

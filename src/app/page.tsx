@@ -215,29 +215,31 @@ export default async function HomePage() {
       </section>
 
       {/* 3. MAIS VENDIDOS (BEST SELLERS) */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-end justify-between mb-8 border-b border-neutral-100 pb-4">
-          <div>
-            <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-neutral-400">
-              <Flame className="w-4 h-4 text-rose-500" />
-              Os Mantos Mais Procurados
+      {bestSellers.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-end justify-between mb-8 border-b border-neutral-100 pb-4">
+            <div>
+              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-neutral-400">
+                <Flame className="w-4 h-4 text-rose-500" />
+                Os Mantos Mais Procurados
+              </div>
+              <h2 className="text-2xl font-black text-neutral-900 tracking-tight">Mais Vendidos</h2>
             </div>
-            <h2 className="text-2xl font-black text-neutral-900 tracking-tight">Mais Vendidos</h2>
+            <Link
+              href="/produtos?bestSeller=true"
+              className="text-xs font-bold uppercase tracking-wider text-neutral-900 hover:text-neutral-500 transition-colors flex items-center gap-1"
+            >
+              Ver Todos <ChevronRight className="w-4 h-4" />
+            </Link>
           </div>
-          <Link
-            href="/produtos?bestSeller=true"
-            className="text-xs font-bold uppercase tracking-wider text-neutral-900 hover:text-neutral-500 transition-colors flex items-center gap-1"
-          >
-            Ver Todos <ChevronRight className="w-4 h-4" />
-          </Link>
-        </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {bestSellers.map((product) => (
-            <ProductCard key={product.id} product={product as any} />
-          ))}
-        </div>
-      </section>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {bestSellers.map((product) => (
+              <ProductCard key={product.id} product={product as any} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* 3.1 GRIFES DE LUXO & STREETWEAR */}
       {luxuryProducts.length > 0 && (
@@ -292,29 +294,31 @@ export default async function HomePage() {
       </section>
 
       {/* 5. LANÇAMENTOS (NEW RELEASES) */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-end justify-between mb-8 border-b border-neutral-100 pb-4">
-          <div>
-            <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-neutral-400">
-              <Sparkles className="w-4 h-4 text-neutral-700" />
-              Recém-Chegados
+      {newReleases.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-end justify-between mb-8 border-b border-neutral-100 pb-4">
+            <div>
+              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-neutral-400">
+                <Sparkles className="w-4 h-4 text-neutral-700" />
+                Recém-Chegados
+              </div>
+              <h2 className="text-2xl font-black text-neutral-900 tracking-tight">Lançamentos da Temporada</h2>
             </div>
-            <h2 className="text-2xl font-black text-neutral-900 tracking-tight">Lançamentos da Temporada</h2>
+            <Link
+              href="/produtos?newRelease=true"
+              className="text-xs font-bold uppercase tracking-wider text-neutral-900 hover:text-neutral-500 transition-colors flex items-center gap-1"
+            >
+              Ver Todos <ChevronRight className="w-4 h-4" />
+            </Link>
           </div>
-          <Link
-            href="/produtos?newRelease=true"
-            className="text-xs font-bold uppercase tracking-wider text-neutral-900 hover:text-neutral-500 transition-colors flex items-center gap-1"
-          >
-            Ver Todos <ChevronRight className="w-4 h-4" />
-          </Link>
-        </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {newReleases.map((product) => (
-            <ProductCard key={product.id} product={product as any} />
-          ))}
-        </div>
-      </section>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {newReleases.map((product) => (
+              <ProductCard key={product.id} product={product as any} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* 6. OFERTAS & PROMOÇÕES */}
       {promoProducts.length > 0 && (

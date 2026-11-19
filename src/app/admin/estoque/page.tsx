@@ -17,6 +17,8 @@ import {
   X,
   ArrowRight,
   TrendingUp,
+  Zap,
+  Trash2,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 
@@ -42,6 +44,91 @@ function InventoryManagementContent() {
   const [minStockInput, setMinStockInput] = useState('2');
   const [submitting, setSubmitting] = useState(false);
   const [modalFeedback, setModalFeedback] = useState<{ text: string; error: boolean } | null>(null);
+  const [actionFeedback, setActionFeedback] = useState<string | null>(null);
+
+  const handleZeroAllStock = async () => {
+    if (!confirm('ATENÇÃO: Deseja realmente ZERAR O ESTOQUE de TODOS os produtos da loja? Todos os tamanhos ficarão com 0 unidades.')) {
+      return;
+    }
+    try {
+      const res = await fetch('/api/admin/system/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'zero_all_stock' }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setActionFeedback(data.message || 'Todo o estoque foi zerado com sucesso!');
+        fetchInventory();
+        setTimeout(() => setActionFeedback(null), 4000);
+      } else {
+        alert(data.error || 'Erro ao zerar estoque');
+      }
+    } catch {
+      alert('Erro de conexão ao zerar estoque');
+    }
+  };
+
+  const handleWipeAllProducts = async () => {
+    if (!confirm('PERIGO: Deseja EXCLUIR TODOS OS PRODUTOS do catálogo para começar a loja do zero? Todos os produtos e estoques serão removidos permanentemente.')) {
+      return;
+    }
+    try {
+      const res = await fetch('/api/admin/system/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'wipe_products' }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setActionFeedback(data.message || 'Catálogo limpo com sucesso! Loja pronta para começar do zero.');
+        fetchInventory();
+        setTimeout(() => setActionFeedback(null), 4000);
+      } else {
+        alert(data.error || 'Erro ao limpar catálogo');
+      }
+    } catch {
+      alert('Erro de conexão ao limpar catálogo');
+    }
+  };
+
+  const handleZeroProductStock = async (prodId: string, prodName: string) => {
+    if (!confirm(`Deseja zerar o estoque de todos os tamanhos de "${prodName}"?`)) return;
+    try {
+      const res = await fetch('/api/admin/system/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'zero_product_stock', productId: prodId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setActionFeedback(data.message || `Estoque de "${prodName}" zerado!`);
+        fetchInventory();
+        setTimeout(() => setActionFeedback(null), 3000);
+      } else {
+        alert(data.error || 'Erro ao zerar estoque');
+      }
+    } catch {
+      alert('Erro ao zerar estoque');
+    }
+  };
+
+  const handleDeleteProduct = async (prodId: string, prodName: string) => {
+    if (!confirm(`Deseja EXCLUIR DEFINITIVAMENTE o produto "${prodName}" da loja?`)) return;
+    try {
+      const res = await fetch(`/api/admin/products/${prodId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        setActionFeedback(`Produto "${prodName}" excluído com sucesso!`);
+        fetchInventory();
+        setTimeout(() => setActionFeedback(null), 3000);
+      } else {
+        alert(data.error || 'Erro ao excluir produto');
+      }
+    } catch {
+      alert('Erro ao excluir produto');
+    }
+  };
 
   const fetchInventory = (isSilent = false) => {
     if (!isSilent) setLoading(true);
@@ -148,12 +235,26 @@ function InventoryManagementContent() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handleZeroAllStock}
+            className="px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+            title="Define todas as quantidades de estoque de todos os produtos como 0"
+          >
+            <Zap className="w-3.5 h-3.5 text-amber-600" /> Zerar Todo o Estoque
+          </button>
+          <button
+            onClick={handleWipeAllProducts}
+            className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+            title="Exclui todos os produtos do catálogo para começar a cadastrar do zero"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-rose-600" /> Limpar Catálogo (Zerar Produtos)
+          </button>
           <Link
             href="/admin/estoque/movimentacoes"
-            className="px-4 py-2 border border-neutral-300 rounded-lg text-xs font-bold text-neutral-800 hover:bg-neutral-100 flex items-center gap-1.5 transition-colors shadow-sm"
+            className="px-3 py-2 border border-neutral-300 rounded-lg text-xs font-bold text-neutral-800 hover:bg-neutral-100 flex items-center gap-1.5 transition-colors shadow-sm"
           >
-            <History className="w-3.5 h-3.5 text-neutral-500" /> Histórico de Movimentações
+            <History className="w-3.5 h-3.5 text-neutral-500" /> Histórico
           </Link>
           <Link
             href="/admin/produtos/novo"
@@ -163,6 +264,13 @@ function InventoryManagementContent() {
           </Link>
         </div>
       </div>
+
+      {actionFeedback && (
+        <div className="p-3.5 bg-neutral-900 text-white text-xs font-bold rounded-xl animate-in fade-in flex items-center gap-2 shadow-md">
+          <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+          <span>{actionFeedback}</span>
+        </div>
+      )}
 
       {/* Filter Tabs and Search Bar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-xl border border-neutral-200 shadow-sm">
@@ -280,12 +388,29 @@ function InventoryManagementContent() {
 
                     {/* Actions */}
                     <td className="py-3 px-4 text-right">
-                      <Link
-                        href={`/admin/produtos/${prod.id}`}
-                        className="text-xs font-semibold text-neutral-600 hover:text-black"
-                      >
-                        Editar Produto →
-                      </Link>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleZeroProductStock(prod.id, prod.name)}
+                          className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-md transition-colors"
+                          title="Zerar estoque deste produto"
+                        >
+                          <Zap className="w-3.5 h-3.5" />
+                        </button>
+                        <Link
+                          href={`/admin/produtos/${prod.id}`}
+                          className="p-1.5 text-neutral-600 hover:text-black hover:bg-neutral-100 rounded-md transition-colors"
+                          title="Editar detalhes e fotos do produto"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </Link>
+                        <button
+                          onClick={() => handleDeleteProduct(prod.id, prod.name)}
+                          className="p-1.5 text-neutral-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                          title="Excluir produto da loja"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

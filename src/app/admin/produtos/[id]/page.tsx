@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, CheckCircle, AlertCircle, Zap } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 import ImageUploader from '@/components/ImageUploader';
 
@@ -165,13 +165,47 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
     }
   };
 
+  const handleZeroThisStock = async () => {
+    if (!confirm('Deseja zerar o estoque de todos os tamanhos deste produto?')) return;
+    const zeroed = sizes.map((s) => ({ ...s, stock: '0' }));
+    setSizes(zeroed);
+    try {
+      const res = await fetch('/api/admin/system/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'zero_product_stock', productId: id }),
+      });
+      if (res.ok) {
+        setSuccess('Estoque deste produto zerado com sucesso!');
+        setTimeout(() => setSuccess(''), 3000);
+      }
+    } catch {
+      // Local state is already 0
+    }
+  };
+
+  const handleDeleteThisProduct = async () => {
+    if (!confirm(`Deseja realmente EXCLUIR DEFINITIVAMENTE o produto "${name}"?`)) return;
+    try {
+      const res = await fetch(`/api/admin/products/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        router.push('/admin/produtos');
+      } else {
+        const d = await res.json();
+        alert(d.error || 'Erro ao excluir produto');
+      }
+    } catch {
+      alert('Erro ao excluir produto');
+    }
+  };
+
   if (loading) {
     return <div className="p-12 text-center text-xs text-neutral-500">Carregando produto para edição...</div>;
   }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between pb-4 border-b border-neutral-200">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-neutral-200">
         <div>
           <Link
             href="/admin/produtos"
@@ -181,6 +215,25 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
           </Link>
           <h1 className="text-2xl font-black text-neutral-900 tracking-tight">Editar Manto</h1>
           <p className="text-xs text-neutral-500">SKU: {sku}</p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleZeroThisStock}
+            className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+            title="Define o estoque de todos os tamanhos deste produto como 0"
+          >
+            <Zap className="w-3.5 h-3.5 text-amber-600" /> Zerar Estoque
+          </button>
+          <button
+            type="button"
+            onClick={handleDeleteThisProduct}
+            className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+            title="Exclui este produto permanentemente"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-rose-600" /> Excluir Produto
+          </button>
         </div>
       </div>
 

@@ -94,8 +94,32 @@ export async function POST(req: Request) {
       sizes, // array of { size, stock, minStock }
     } = body;
 
-    if (!name || !sku || !categoryId || !price) {
-      return NextResponse.json({ error: 'Campos obrigatórios ausentes (Nome, SKU, Categoria, Preço)' }, { status: 400 });
+    if (!name || price === undefined || price === null || price === '') {
+      return NextResponse.json({ error: 'Preencha pelo menos o Nome e o Preço do produto.' }, { status: 400 });
+    }
+
+    const finalSku = (sku && sku.trim())
+      ? sku.trim().toUpperCase()
+      : `CK-${Date.now().toString(36).toUpperCase()}`;
+
+    // Resolve or auto-create category if missing
+    let targetCategoryId = categoryId;
+    if (!targetCategoryId) {
+      const firstCat = await prisma.category.findFirst();
+      if (firstCat) {
+        targetCategoryId = firstCat.id;
+      } else {
+        const createdCat = await prisma.category.create({
+          data: {
+            name: 'Geral',
+            slug: 'geral',
+            description: 'Categoria Padrão da Loja',
+            isActive: true,
+            sortOrder: 0,
+          },
+        });
+        targetCategoryId = createdCat.id;
+      }
     }
 
     // Slug generation
@@ -116,10 +140,10 @@ export async function POST(req: Request) {
         data: {
           name,
           slug,
-          sku: sku.trim().toUpperCase(),
+          sku: finalSku,
           barcode: barcode || null,
           description: description || '',
-          categoryId,
+          categoryId: targetCategoryId,
           brand: brand || '',
           team: team || '',
           country: country || 'Internacional',
@@ -142,7 +166,12 @@ export async function POST(req: Request) {
             })),
           },
           sizes: {
-            create: (sizes || []).map((s: any) => ({
+            create: (sizes && sizes.length > 0 ? sizes : [
+              { size: 'P', stock: 0, minStock: 2 },
+              { size: 'M', stock: 0, minStock: 2 },
+              { size: 'G', stock: 0, minStock: 2 },
+              { size: 'GG', stock: 0, minStock: 2 },
+            ]).map((s: any) => ({
               size: s.size,
               stock: parseInt(s.stock, 10) || 0,
               minStock: parseInt(s.minStock, 10) || 2,

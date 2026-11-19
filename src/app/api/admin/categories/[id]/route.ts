@@ -45,16 +45,37 @@ export async function DELETE(
 
     const { id } = params;
 
+    // If there are products linked to this category, reassign them to another category or create 'Geral'
     const count = await prisma.product.count({ where: { categoryId: id } });
     if (count > 0) {
-      return NextResponse.json(
-        { error: `Esta categoria possui ${count} produto(s) vinculado(s). Reatribua os produtos antes de excluir.` },
-        { status: 400 }
-      );
+      let otherCat = await prisma.category.findFirst({
+        where: { id: { not: id } },
+      });
+
+      if (!otherCat) {
+        otherCat = await prisma.category.create({
+          data: {
+            name: 'Geral',
+            slug: 'geral',
+            description: 'Categoria Geral Padrão',
+            isActive: true,
+            sortOrder: 0,
+          },
+        });
+      }
+
+      // Reassign products to safe fallback
+      const prods = await prisma.product.findMany({ where: { categoryId: id } });
+      for (const p of prods) {
+        await prisma.product.update({
+          where: { id: p.id },
+          data: { categoryId: otherCat.id },
+        });
+      }
     }
 
     await prisma.category.delete({ where: { id } });
-    return NextResponse.json({ success: true, message: 'Categoria excluída com sucesso' });
+    return NextResponse.json({ success: true, message: 'Categoria excluída com sucesso!' });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Erro ao excluir categoria' }, { status: 500 });
   }

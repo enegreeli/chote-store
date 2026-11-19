@@ -201,22 +201,8 @@ export async function DELETE(
 
     const { id } = params;
 
-    // Check if product is in any order
-    const orderItemsCount = await prisma.orderItem.count({ where: { productId: id } });
-
-    if (orderItemsCount > 0) {
-      // Inactivate instead of deleting to preserve order history
-      await prisma.product.update({
-        where: { id },
-        data: { isActive: false },
-      });
-      return NextResponse.json({
-        success: true,
-        message: 'O produto possui pedidos vinculados e foi inativado/arquivado para manter a integridade histórica.',
-      });
-    }
-
-    // Otherwise safe to delete
+    // Permanently cascade delete product and all relations
+    await prisma.orderItem.deleteMany({ where: { productId: id } });
     await prisma.stockMovement.deleteMany({ where: { productId: id } });
     await prisma.productSizeStock.deleteMany({ where: { productId: id } });
     await prisma.productImage.deleteMany({ where: { productId: id } });

@@ -491,6 +491,26 @@ class StoreDatabase {
         if (index === -1) return null;
 
         const removed = items.splice(index, 1)[0];
+
+        // Automatic cascade cleanup
+        if (collectionKey === 'products' && removed?.id) {
+          const prodId = removed.id;
+          this.data.productImages = this.data.productImages.filter((img) => img.productId !== prodId);
+          this.data.productSizeStocks = this.data.productSizeStocks.filter((s) => s.productId !== prodId);
+          this.data.stockMovements = this.data.stockMovements.filter((m) => m.productId !== prodId);
+          this.data.orderItems = this.data.orderItems.filter((oi) => oi.productId !== prodId);
+        }
+
+        if (collectionKey === 'categories' && removed?.id) {
+          const catId = removed.id;
+          const fallbackCat = this.data.categories[0] || null;
+          for (const p of this.data.products) {
+            if (p.categoryId === catId) {
+              p.categoryId = fallbackCat ? fallbackCat.id : '';
+            }
+          }
+        }
+
         this.save();
         return removed;
       },
@@ -504,9 +524,24 @@ class StoreDatabase {
         }
 
         const initialLen = this.data[collectionKey].length;
+        const toRemove = this.data[collectionKey].filter((item) =>
+          this.matchesWhere(item, args.where, collectionKey)
+        );
         this.data[collectionKey] = this.data[collectionKey].filter(
           (item) => !this.matchesWhere(item, args.where, collectionKey)
         );
+
+        if (collectionKey === 'products') {
+          for (const rem of toRemove) {
+            if (rem.id) {
+              this.data.productImages = this.data.productImages.filter((img) => img.productId !== rem.id);
+              this.data.productSizeStocks = this.data.productSizeStocks.filter((s) => s.productId !== rem.id);
+              this.data.stockMovements = this.data.stockMovements.filter((m) => m.productId !== rem.id);
+              this.data.orderItems = this.data.orderItems.filter((oi) => oi.productId !== rem.id);
+            }
+          }
+        }
+
         const removedCount = initialLen - this.data[collectionKey].length;
         if (removedCount > 0) {
           this.save();
@@ -514,6 +549,82 @@ class StoreDatabase {
         return { count: removedCount };
       },
     };
+  }
+
+  // Quick store management helpers
+  public zeroProductStock(productId: string): number {
+    let count = 0;
+    for (const s of this.data.productSizeStocks) {
+      if (s.productId === productId) {
+        s.stock = 0;
+        s.updatedAt = new Date().toISOString();
+        count++;
+      }
+    }
+    this.save();
+    return count;
+  }
+
+  public zeroAllStock(): number {
+    let count = 0;
+    for (const s of this.data.productSizeStocks) {
+      s.stock = 0;
+      s.updatedAt = new Date().toISOString();
+      count++;
+    }
+    this.save();
+    return count;
+  }
+
+  public wipeAllProducts(): { productsRemoved: number } {
+    const productsRemoved = this.data.products.length;
+    this.data.products = [];
+    this.data.productImages = [];
+    this.data.productSizeStocks = [];
+    this.data.stockMovements = [];
+    this.data.orderItems = [];
+    this.save();
+    return { productsRemoved };
+  }
+
+  public wipeEverything(preserveAdmin: boolean = true): void {
+    const adminUser = preserveAdmin
+      ? this.data.users.find((u) => u.role === 'ADMIN' || u.email === 'chote@store.com')
+      : null;
+
+    const defaultCategories =
+      this.data.categories.length > 0
+        ? this.data.categories
+        : [
+            {
+              id: 'cat-geral',
+              name: 'Geral',
+              slug: 'geral',
+              description: 'Categoria Geral',
+              isActive: true,
+              sortOrder: 0,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+          ];
+
+    this.data = {
+      users: adminUser ? [adminUser] : [],
+      categories: defaultCategories,
+      products: [],
+      productImages: [],
+      productSizeStocks: [],
+      stockMovements: [],
+      orders: [],
+      orderItems: [],
+      orderStatusHistories: [],
+      financialTransactions: [],
+      coupons: this.data.coupons || [],
+      storeSettings: this.data.storeSettings || [],
+      wishlists: [],
+      addresses: [],
+    };
+    this.save();
   }
 
   // Model accessors

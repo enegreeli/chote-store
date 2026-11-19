@@ -10,7 +10,10 @@ import ImageUploader from '@/components/ImageUploader';
 export default function NewProductPage() {
   const router = useRouter();
 
+  // Categories and Quick Category State
   const [categories, setCategories] = useState<any[]>([]);
+  const [quickCatName, setQuickCatName] = useState('');
+  const [showQuickCat, setShowQuickCat] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -25,8 +28,8 @@ export default function NewProductPage() {
   const [season, setSeason] = useState('2024/2025');
   const [modelType, setModelType] = useState('GRIFE');
   const [supplier, setSupplier] = useState('');
-  const [acquisitionCost, setAcquisitionCost] = useState('120');
-  const [price, setPrice] = useState('349.90');
+  const [acquisitionCost, setAcquisitionCost] = useState('0');
+  const [price, setPrice] = useState('');
   const [promoPrice, setPromoPrice] = useState('');
   const [description, setDescription] = useState('');
   const [isActive, setIsActive] = useState(true);
@@ -38,13 +41,38 @@ export default function NewProductPage() {
   // Photos (PC, Celular ou Link)
   const [images, setImages] = useState<string[]>([]);
 
-  // Sizes and individual stock
+  // Sizes and individual stock - starts clean at 0
   const [sizes, setSizes] = useState([
-    { size: 'P', stock: '3', minStock: '2' },
-    { size: 'M', stock: '5', minStock: '3' },
-    { size: 'G', stock: '4', minStock: '2' },
-    { size: 'GG', stock: '2', minStock: '2' },
+    { size: 'P', stock: '0', minStock: '2' },
+    { size: 'M', stock: '0', minStock: '2' },
+    { size: 'G', stock: '0', minStock: '2' },
+    { size: 'GG', stock: '0', minStock: '2' },
   ]);
+
+  const handleCreateQuickCategory = async () => {
+    if (!quickCatName.trim()) return;
+    try {
+      const res = await fetch('/api/admin/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: quickCatName.trim(),
+          slug: quickCatName.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-'),
+          sortOrder: categories.length + 1,
+          isActive: true,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.category) {
+        setCategories((prev) => [...prev, data.category]);
+        setCategoryId(data.category.id);
+        setQuickCatName('');
+        setShowQuickCat(false);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   useEffect(() => {
     fetch('/api/categories')
@@ -200,12 +228,44 @@ export default function NewProductPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-neutral-700 mb-1">Categoria *</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold text-neutral-700">Categoria *</label>
+                <button
+                  type="button"
+                  onClick={() => setShowQuickCat(!showQuickCat)}
+                  className="text-[11px] font-bold text-neutral-600 hover:text-black underline"
+                >
+                  {showQuickCat ? 'Cancelar' : '+ Nova Categoria'}
+                </button>
+              </div>
+
+              {showQuickCat && (
+                <div className="flex items-center gap-1.5 mb-2">
+                  <input
+                    type="text"
+                    value={quickCatName}
+                    onChange={(e) => setQuickCatName(e.target.value)}
+                    placeholder="Nome da nova categoria..."
+                    className="flex-1 px-3 py-1.5 text-xs border border-neutral-300 rounded-lg outline-none focus:border-black"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCreateQuickCategory}
+                    className="px-3 py-1.5 bg-neutral-900 text-white rounded-lg text-xs font-bold hover:bg-black"
+                  >
+                    Salvar
+                  </button>
+                </div>
+              )}
+
               <select
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
                 className="w-full px-3 py-2 text-xs border border-neutral-300 rounded-lg outline-none focus:border-black bg-white"
               >
+                {categories.length === 0 && (
+                  <option value="">Geral (Padrão)</option>
+                )}
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -375,12 +435,39 @@ export default function NewProductPage() {
 
         {/* Sizes and Stock */}
         <div className="p-6 bg-white border border-neutral-200 rounded-2xl shadow-sm space-y-4">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-900">
-            3. Controle de Estoque por Tamanho (P, M, G, GG)
-          </h2>
-          <p className="text-xs text-neutral-500">
-            Defina o estoque inicial de cada tamanho e o limite mínimo para alerta automático de reposição.
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-900">
+                3. Controle de Estoque por Tamanho (P, M, G, GG)
+              </h2>
+              <p className="text-xs text-neutral-500">
+                Defina o estoque inicial de cada tamanho.
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setSizes(sizes.map((s) => ({ ...s, stock: '0' })))}
+                className="px-2.5 py-1 text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200 rounded-md hover:bg-amber-100"
+              >
+                Zerar Todos (0 un.)
+              </button>
+              <button
+                type="button"
+                onClick={() => setSizes(sizes.map((s) => ({ ...s, stock: '5' })))}
+                className="px-2.5 py-1 text-[11px] font-bold bg-neutral-100 text-neutral-800 rounded-md hover:bg-neutral-200"
+              >
+                5 un. cada
+              </button>
+              <button
+                type="button"
+                onClick={() => setSizes(sizes.map((s) => ({ ...s, stock: '10' })))}
+                className="px-2.5 py-1 text-[11px] font-bold bg-neutral-100 text-neutral-800 rounded-md hover:bg-neutral-200"
+              >
+                10 un. cada
+              </button>
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             {sizes.map((s, idx) => (

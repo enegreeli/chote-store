@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Settings, Save, CheckCircle, AlertCircle } from 'lucide-react';
+import { Settings, Save, CheckCircle, AlertCircle, Zap, Trash2, Download, Database, RefreshCw } from 'lucide-react';
 
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<Record<string, string>>({
@@ -63,6 +63,47 @@ export default function AdminSettingsPage() {
       setFeedback({ text: err.message || 'Erro ao salvar', error: true });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSystemAction = async (action: string, confirmMsg: string) => {
+    if (!confirm(confirmMsg)) return;
+    setSaving(true);
+    setFeedback(null);
+    try {
+      const res = await fetch('/api/admin/system/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setFeedback({ text: data.message || 'Ação executada com sucesso!', error: false });
+      } else {
+        setFeedback({ text: data.error || 'Erro ao executar ação', error: true });
+      }
+    } catch {
+      setFeedback({ text: 'Erro de conexão ao executar comando no sistema', error: true });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDownloadBackup = async () => {
+    try {
+      const res = await fetch('/api/admin/system/reset');
+      const data = await res.json();
+      if (res.ok && data.data) {
+        const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `chote_store_backup_${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch {
+      alert('Erro ao exportar banco.');
     }
   };
 
@@ -265,6 +306,82 @@ export default function AdminSettingsPage() {
           </button>
         </div>
       </form>
+
+      {/* Database Management & Store Reset Section */}
+      <div className="p-6 bg-white border border-neutral-200 rounded-2xl shadow-sm space-y-6">
+        <div>
+          <div className="flex items-center gap-2">
+            <Database className="w-4 h-4 text-neutral-800" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-900">
+              4. Gerenciamento do Banco Interno e Reset da Loja
+            </h2>
+          </div>
+          <p className="text-xs text-neutral-500 mt-1">
+            Utilize estas ferramentas para zerar estoques, limpar produtos de teste e iniciar o catálogo do zero.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Zero Stock */}
+          <div className="p-4 bg-neutral-50 rounded-xl border border-neutral-200 flex flex-col justify-between space-y-3">
+            <div>
+              <div className="flex items-center gap-1.5 font-bold text-xs text-neutral-900 mb-1">
+                <Zap className="w-3.5 h-3.5 text-amber-600" /> Zerar Todo o Estoque
+              </div>
+              <p className="text-[11px] text-neutral-500">
+                Mantém os produtos cadastrados, mas define todas as quantidades de todos os tamanhos como 0.
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => handleSystemAction('zero_all_stock', 'Deseja ZERAR O ESTOQUE de todos os produtos?')}
+              className="w-full py-2 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 rounded-lg text-xs font-bold transition-colors"
+            >
+              Executar Zeramento
+            </button>
+          </div>
+
+          {/* Wipe Products */}
+          <div className="p-4 bg-neutral-50 rounded-xl border border-neutral-200 flex flex-col justify-between space-y-3">
+            <div>
+              <div className="flex items-center gap-1.5 font-bold text-xs text-neutral-900 mb-1">
+                <Trash2 className="w-3.5 h-3.5 text-rose-600" /> Limpar Catálogo de Produtos
+              </div>
+              <p className="text-[11px] text-neutral-500">
+                Exclui todos os produtos, imagens e estoques. Deixa a loja limpa para adicionar seus próprios produtos aos poucos.
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => handleSystemAction('wipe_products', 'PERIGO: Deseja EXCLUIR TODOS OS PRODUTOS do catálogo? Esta ação é definitiva.')}
+              className="w-full py-2 bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-800 rounded-lg text-xs font-bold transition-colors"
+            >
+              Limpar Todos os Produtos
+            </button>
+          </div>
+
+          {/* Backup Database */}
+          <div className="p-4 bg-neutral-50 rounded-xl border border-neutral-200 flex flex-col justify-between space-y-3">
+            <div>
+              <div className="flex items-center gap-1.5 font-bold text-xs text-neutral-900 mb-1">
+                <Download className="w-3.5 h-3.5 text-blue-600" /> Backup Completo (JSON)
+              </div>
+              <p className="text-[11px] text-neutral-500">
+                Exporta o arquivo JSON completo com produtos, categorias, clientes e configurações.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleDownloadBackup}
+              className="w-full py-2 bg-blue-50 hover:bg-blue-100 border border-blue-300 text-blue-800 rounded-lg text-xs font-bold transition-colors"
+            >
+              Baixar Backup JSON
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
