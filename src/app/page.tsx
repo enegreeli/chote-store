@@ -8,7 +8,16 @@ import ProductCard from '@/components/ProductCard';
 export const dynamic = 'force-dynamic';
 
 async function getHomeData() {
-  const [featuredProducts, bestSellers, newReleases, promoProducts, luxuryProducts, categories] = await Promise.all([
+  const [allProducts, featuredProducts, bestSellers, newReleases, promoProducts, luxuryProducts, categories] = await Promise.all([
+    prisma.product.findMany({
+      where: { isActive: true },
+      orderBy: { createdAt: 'desc' },
+      take: 8,
+      include: {
+        images: { orderBy: { order: 'asc' } },
+        sizes: { orderBy: { size: 'asc' } },
+      },
+    }),
     prisma.product.findMany({
       where: { isActive: true, isFeatured: true },
       take: 4,
@@ -63,11 +72,11 @@ async function getHomeData() {
     }),
   ]);
 
-  return { featuredProducts, bestSellers, newReleases, promoProducts, luxuryProducts, categories };
+  return { allProducts, featuredProducts, bestSellers, newReleases, promoProducts, luxuryProducts, categories };
 }
 
 export default async function HomePage() {
-  const { featuredProducts, bestSellers, newReleases, promoProducts, luxuryProducts, categories } = await getHomeData();
+  const { allProducts, featuredProducts, bestSellers, newReleases, promoProducts, luxuryProducts, categories } = await getHomeData();
 
   return (
     <div className="space-y-16 pb-20">
@@ -214,6 +223,33 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* 2.5 DESTAQUES & CATÁLOGO GERAL */}
+      {allProducts.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-end justify-between mb-8 border-b border-neutral-100 pb-4">
+            <div>
+              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-neutral-400">
+                <Sparkles className="w-4 h-4 text-neutral-900" />
+                Catálogo Oficial & Novidades
+              </div>
+              <h2 className="text-2xl font-black text-neutral-900 tracking-tight">Coleção em Destaque</h2>
+            </div>
+            <Link
+              href="/produtos"
+              className="text-xs font-bold uppercase tracking-wider text-neutral-900 hover:text-neutral-500 transition-colors flex items-center gap-1"
+            >
+              Ver Catálogo Completo ({allProducts.length}) <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {allProducts.map((product) => (
+              <ProductCard key={product.id} product={product as any} />
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* 3. MAIS VENDIDOS (BEST SELLERS) */}
       {bestSellers.length > 0 && (
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -283,7 +319,7 @@ export default async function HomePage() {
             </p>
             <div className="pt-2">
               <Link
-                href="/produtos?category=retro"
+                href="/produtos?category=camisas-retro"
                 className="inline-flex items-center gap-2 px-6 py-3 bg-white text-black font-bold text-xs uppercase tracking-wider rounded-lg hover:bg-neutral-200 transition-colors"
               >
                 Conhecer Linha Retrô <ArrowRight className="w-4 h-4" />

@@ -7,6 +7,7 @@ import { WishlistProvider } from '@/context/WishlistContext';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import CartDrawer from '@/components/CartDrawer';
+import GlobalStoreSync from '@/components/GlobalStoreSync';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -26,6 +27,7 @@ export default function RootLayout({
         <AuthProvider>
           <WishlistProvider>
             <CartProvider>
+              <GlobalStoreSync />
               <Navbar />
               <main className="flex-1">{children}</main>
               <CartDrawer />

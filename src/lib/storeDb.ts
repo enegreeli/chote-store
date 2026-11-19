@@ -19,6 +19,9 @@ export interface StoreDbData {
   addresses: any[];
 }
 
+const DEFAULT_KV_URL = 'https://settling-bobcat-207236.upstash.io';
+const DEFAULT_KV_TOKEN = 'gQAAAAAAAymEAQIgcDFjYWQxMjFjYmNjZjc0ZGU4YTA0OWYzMTExMDhhZWIwNQ';
+
 function generateId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 9)}`;
 }
@@ -122,17 +125,17 @@ class StoreDatabase {
   }
 
   private syncToCloud(): void {
-    const kvUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-    const kvToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+    const kvUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || DEFAULT_KV_URL;
+    const kvToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || DEFAULT_KV_TOKEN;
     if (kvUrl && kvToken) {
       try {
-        fetch(`${kvUrl}/set/chote_store_db`, {
+        fetch(kvUrl, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${kvToken}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(this.data),
+          body: JSON.stringify(['SET', 'chote_store_db', JSON.stringify(this.data)]),
         }).catch((e) => console.warn('KV sync error:', e));
       } catch (err) {
         console.warn('Could not dispatch KV sync:', err);
@@ -141,16 +144,21 @@ class StoreDatabase {
   }
 
   public async ensureFreshData(): Promise<void> {
-    const kvUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-    const kvToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+    const kvUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || DEFAULT_KV_URL;
+    const kvToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || DEFAULT_KV_TOKEN;
     if (kvUrl && kvToken) {
       try {
-        const res = await fetch(`${kvUrl}/get/chote_store_db`, {
-          headers: { Authorization: `Bearer ${kvToken}` },
+        const res = await fetch(kvUrl, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${kvToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(['GET', 'chote_store_db']),
           cache: 'no-store',
         });
         const json = await res.json();
-        if (json.result) {
+        if (json && json.result) {
           const parsed = typeof json.result === 'string' ? JSON.parse(json.result) : json.result;
           this.data = { ...this.getInitialData(), ...parsed };
           try {
@@ -224,6 +232,18 @@ class StoreDatabase {
       // Special nested category check on product
       if (key === 'category' && typeof whereVal === 'object') {
         const cat = this.data.categories.find((c) => c.id === item.categoryId);
+        const targetSlug = whereVal.slug;
+        if (targetSlug) {
+          if (targetSlug === 'lancamentos' && item.isNewRelease) continue;
+          if (targetSlug === 'promocoes' && (item.isPromo || (item.promoPrice && item.promoPrice < item.price))) continue;
+          if ((targetSlug === 'camisas-retro' || targetSlug === 'retro') && item.modelType === 'RETRO') continue;
+          if (targetSlug === 'grifes-luxo' && item.modelType === 'GRIFE') continue;
+          if (targetSlug === 'streetwear' && item.modelType === 'STREETWEAR') continue;
+          if (targetSlug === 'jogador' && item.modelType === 'JOGADOR') continue;
+          if (targetSlug === 'torcedor' && item.modelType === 'TORCEDOR') continue;
+          if (targetSlug === 'camisetas-polo' && item.modelType === 'POLO') continue;
+          if (targetSlug === 'camisetas-casuais' && item.modelType === 'CAMISETA') continue;
+        }
         if (!cat) return false;
         if (!this.matchesWhere(cat, whereVal, 'categories')) return false;
         continue;
@@ -317,8 +337,22 @@ class StoreDatabase {
         clone.products = this.data.products.filter((p) => p.categoryId === item.id);
       }
       if (include._count) {
+        const count = this.data.products.filter((p) => {
+          if (!p.isActive) return false;
+          if (p.categoryId === item.id) return true;
+          if (item.slug === 'lancamentos' && p.isNewRelease) return true;
+          if (item.slug === 'promocoes' && (p.isPromo || (p.promoPrice && p.promoPrice < p.price))) return true;
+          if ((item.slug === 'camisas-retro' || item.slug === 'retro') && p.modelType === 'RETRO') return true;
+          if (item.slug === 'grifes-luxo' && p.modelType === 'GRIFE') return true;
+          if (item.slug === 'streetwear' && p.modelType === 'STREETWEAR') return true;
+          if (item.slug === 'jogador' && p.modelType === 'JOGADOR') return true;
+          if (item.slug === 'torcedor' && p.modelType === 'TORCEDOR') return true;
+          if (item.slug === 'camisetas-polo' && p.modelType === 'POLO') return true;
+          if (item.slug === 'camisetas-casuais' && p.modelType === 'CAMISETA') return true;
+          return false;
+        }).length;
         clone._count = {
-          products: this.data.products.filter((p) => p.categoryId === item.id && p.isActive).length,
+          products: count,
         };
       }
     }

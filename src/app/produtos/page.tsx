@@ -12,6 +12,9 @@ function CatalogContent() {
   // Filters State from URL or local
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+  const [totalCatalogCount, setTotalCatalogCount] = useState(0);
+  const [brandCounts, setBrandCounts] = useState<Record<string, number>>({});
+  const [modelCounts, setModelCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
@@ -31,20 +34,53 @@ function CatalogContent() {
   const [sort, setSort] = useState(searchParams.get('sort') || 'newest');
   const [maxPrice, setMaxPrice] = useState(searchParams.get('maxPrice') || '1000');
 
-  // Load Categories
-  useEffect(() => {
-    fetch('/api/categories')
+  // Load Categories & Global Counts
+  const refreshGlobalData = () => {
+    fetch('/api/categories', { cache: 'no-store' })
       .then((res) => res.json())
       .then((data) => {
         if (data.categories) setCategories(data.categories);
       })
       .catch(console.error);
+
+    fetch('/api/products', { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.products) {
+          setTotalCatalogCount(data.products.length);
+          const bCounts: Record<string, number> = {};
+          const mCounts: Record<string, number> = {};
+          data.products.forEach((p: any) => {
+            if (p.brand) {
+              const b = p.brand.trim();
+              bCounts[b] = (bCounts[b] || 0) + 1;
+              bCounts[b.toLowerCase()] = (bCounts[b.toLowerCase()] || 0) + 1;
+            }
+            if (p.team) {
+              const t = p.team.trim();
+              bCounts[t] = (bCounts[t] || 0) + 1;
+              bCounts[t.toLowerCase()] = (bCounts[t.toLowerCase()] || 0) + 1;
+            }
+            if (p.modelType) {
+              mCounts[p.modelType] = (mCounts[p.modelType] || 0) + 1;
+            }
+          });
+          setBrandCounts(bCounts);
+          setModelCounts(mCounts);
+        }
+      })
+      .catch(console.error);
+  };
+
+  useEffect(() => {
+    refreshGlobalData();
   }, []);
 
   // Fetch Products with filters
   useEffect(() => {
     const fetchCatalog = (isSilent = false) => {
       if (!isSilent) setLoading(true);
+      refreshGlobalData();
       const params = new URLSearchParams();
 
       if (selectedCategory) params.set('category', selectedCategory);
@@ -145,24 +181,23 @@ function CatalogContent() {
         <div className="space-y-1.5 text-xs">
           <button
             onClick={() => setSelectedCategory('')}
-            className={`w-full text-left py-1 px-2 rounded transition-colors ${
+            className={`w-full text-left py-1 px-2 rounded transition-colors flex items-center justify-between ${
               !selectedCategory ? 'font-bold bg-neutral-100 text-black' : 'text-neutral-600 hover:text-black'
             }`}
           >
-            Todas as Categorias
+            <span>Todas as Categorias</span>
+            <span className="text-[10px] text-neutral-400">({totalCatalogCount})</span>
           </button>
           {categories.map((c) => (
             <button
               key={c.id}
-              onClick={() => setSelectedCategory(c.slug)}
+              onClick={() => setSelectedCategory(selectedCategory === c.slug ? '' : c.slug)}
               className={`w-full text-left py-1 px-2 rounded transition-colors flex items-center justify-between ${
                 selectedCategory === c.slug ? 'font-bold bg-neutral-100 text-black' : 'text-neutral-600 hover:text-black'
               }`}
             >
               <span>{c.name}</span>
-              {c._count?.products !== undefined && (
-                <span className="text-[10px] text-neutral-400">({c._count.products})</span>
-              )}
+              <span className="text-[10px] text-neutral-400">({c._count?.products ?? 0})</span>
             </button>
           ))}
         </div>
@@ -174,26 +209,36 @@ function CatalogContent() {
         <div className="space-y-1.5 text-xs">
           {[
             { label: 'Todas as Grifes', value: '' },
+            { label: 'Corinthians', value: 'Corinthians' },
+            { label: 'Flamengo', value: 'Flamengo' },
+            { label: 'Palmeiras', value: 'Palmeiras' },
+            { label: 'São Paulo', value: 'São Paulo' },
+            { label: 'Real Madrid', value: 'Real Madrid' },
+            { label: 'Barcelona', value: 'Barcelona' },
             { label: 'Lacoste', value: 'Lacoste' },
             { label: 'Hugo Boss', value: 'Hugo Boss' },
             { label: 'Ralph Lauren', value: 'Ralph Lauren' },
             { label: 'Tommy Hilfiger', value: 'Tommy Hilfiger' },
-            { label: 'Armani Exchange', value: 'Armani Exchange' },
             { label: 'Balenciaga', value: 'Balenciaga' },
             { label: 'Nike Sportswear', value: 'Nike' },
             { label: 'Adidas Originals', value: 'Adidas' },
-            { label: 'Puma', value: 'Puma' },
-          ].map((b) => (
-            <button
-              key={b.value}
-              onClick={() => setSelectedBrand(b.value)}
-              className={`w-full text-left py-1 px-2 rounded transition-colors ${
-                selectedBrand === b.value ? 'font-bold bg-neutral-100 text-black' : 'text-neutral-600 hover:text-black'
-              }`}
-            >
-              {b.label}
-            </button>
-          ))}
+          ].map((b) => {
+            const count = b.value === '' 
+              ? totalCatalogCount 
+              : (brandCounts[b.value] || brandCounts[b.value.toLowerCase()] || 0);
+            return (
+              <button
+                key={b.value}
+                onClick={() => setSelectedBrand(selectedBrand === b.value ? '' : b.value)}
+                className={`w-full text-left py-1 px-2 rounded transition-colors flex items-center justify-between ${
+                  selectedBrand === b.value ? 'font-bold bg-neutral-100 text-black' : 'text-neutral-600 hover:text-black'
+                }`}
+              >
+                <span>{b.label}</span>
+                <span className="text-[10px] text-neutral-400">({count})</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -202,23 +247,24 @@ function CatalogContent() {
         <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-900 mb-3">Linha & Modelo</h4>
         <div className="space-y-1.5 text-xs">
           {[
-            { label: 'Todas as Linhas', value: '' },
-            { label: 'Grifes de Luxo (Designer)', value: 'GRIFE' },
-            { label: 'Streetwear Premium', value: 'STREETWEAR' },
-            { label: 'Versão Jogador (Authentic)', value: 'JOGADOR' },
-            { label: 'Versão Torcedor (Fan)', value: 'TORCEDOR' },
-            { label: 'Camisas Polo', value: 'POLO' },
-            { label: 'Camisetas Casuais (T-Shirts)', value: 'CAMISETA' },
-            { label: 'Edição Retrô Histórica', value: 'RETRO' },
+            { label: 'Todas as Linhas', value: '', count: totalCatalogCount },
+            { label: 'Grifes de Luxo (Designer)', value: 'GRIFE', count: modelCounts['GRIFE'] || 0 },
+            { label: 'Streetwear Premium', value: 'STREETWEAR', count: modelCounts['STREETWEAR'] || 0 },
+            { label: 'Versão Jogador (Authentic)', value: 'JOGADOR', count: modelCounts['JOGADOR'] || 0 },
+            { label: 'Versão Torcedor (Fan)', value: 'TORCEDOR', count: modelCounts['TORCEDOR'] || 0 },
+            { label: 'Camisas Polo', value: 'POLO', count: modelCounts['POLO'] || 0 },
+            { label: 'Camisetas Casuais (T-Shirts)', value: 'CAMISETA', count: modelCounts['CAMISETA'] || 0 },
+            { label: 'Edição Retrô Histórica', value: 'RETRO', count: modelCounts['RETRO'] || 0 },
           ].map((m) => (
             <button
               key={m.value}
-              onClick={() => setSelectedModel(m.value)}
-              className={`w-full text-left py-1 px-2 rounded transition-colors ${
+              onClick={() => setSelectedModel(selectedModel === m.value ? '' : m.value)}
+              className={`w-full text-left py-1 px-2 rounded transition-colors flex items-center justify-between ${
                 selectedModel === m.value ? 'font-bold bg-neutral-100 text-black' : 'text-neutral-600 hover:text-black'
               }`}
             >
-              {m.label}
+              <span>{m.label}</span>
+              <span className="text-[10px] text-neutral-400">({m.count})</span>
             </button>
           ))}
         </div>

@@ -21,12 +21,17 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const user = await getCurrentUser();
-    if (!user || !isStaffOrAdmin(user.role)) {
-      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
-    }
+    const isAuthed = user && isStaffOrAdmin(user.role);
 
     const body = await req.json();
     const { action, productId, data } = body;
+
+    const serverIsEmpty = (storeDb.getRawData().products || []).length === 0;
+
+    // Allow auto-heal restore if server is completely empty
+    if (!isAuthed && !(action === 'import_json' && serverIsEmpty)) {
+      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
+    }
 
     if (action === 'zero_all_stock') {
       const affected = storeDb.zeroAllStock();
