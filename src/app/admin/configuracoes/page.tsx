@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Settings, Save, CheckCircle, AlertCircle, Zap, Trash2, Download, Database, RefreshCw } from 'lucide-react';
+import { Settings, Save, CheckCircle, AlertCircle, Zap, Trash2, Download, Database, RefreshCw, Upload } from 'lucide-react';
 
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<Record<string, string>>({
@@ -78,6 +78,11 @@ export default function AdminSettingsPage() {
       });
       const data = await res.json();
       if (res.ok) {
+        if (action === 'wipe_products' || action === 'wipe_all_data') {
+          localStorage.setItem('chote_master_db_explicitly_wiped', 'true');
+          localStorage.removeItem('chote_master_db_snapshot_v1');
+          localStorage.setItem('chote_master_db_count_v1', '0');
+        }
         setFeedback({ text: data.message || 'Ação executada com sucesso!', error: false });
       } else {
         setFeedback({ text: data.error || 'Erro ao executar ação', error: true });
@@ -104,6 +109,39 @@ export default function AdminSettingsPage() {
       }
     } catch {
       alert('Erro ao exportar banco.');
+    }
+  };
+
+  const handleRestoreJson = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!confirm('Deseja substituir os dados atuais pelos dados deste arquivo JSON?')) return;
+    setSaving(true);
+    setFeedback(null);
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const res = await fetch('/api/admin/system/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'import_json', data: parsed }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        localStorage.setItem('chote_master_db_snapshot_v1', JSON.stringify(parsed));
+        if (parsed.products) {
+          localStorage.setItem('chote_master_db_count_v1', parsed.products.length.toString());
+        }
+        localStorage.removeItem('chote_master_db_explicitly_wiped');
+        setFeedback({ text: 'Banco de dados restaurado com sucesso!', error: false });
+      } else {
+        setFeedback({ text: data.error || 'Erro ao restaurar banco', error: true });
+      }
+    } catch {
+      setFeedback({ text: 'Arquivo JSON inválido ou corrompido', error: true });
+    } finally {
+      setSaving(false);
+      e.target.value = '';
     }
   };
 
@@ -321,7 +359,7 @@ export default function AdminSettingsPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Zero Stock */}
           <div className="p-4 bg-neutral-50 rounded-xl border border-neutral-200 flex flex-col justify-between space-y-3">
             <div>
@@ -346,10 +384,10 @@ export default function AdminSettingsPage() {
           <div className="p-4 bg-neutral-50 rounded-xl border border-neutral-200 flex flex-col justify-between space-y-3">
             <div>
               <div className="flex items-center gap-1.5 font-bold text-xs text-neutral-900 mb-1">
-                <Trash2 className="w-3.5 h-3.5 text-rose-600" /> Limpar Catálogo de Produtos
+                <Trash2 className="w-3.5 h-3.5 text-rose-600" /> Limpar Catálogo
               </div>
               <p className="text-[11px] text-neutral-500">
-                Exclui todos os produtos, imagens e estoques. Deixa a loja limpa para adicionar seus próprios produtos aos poucos.
+                Exclui todos os produtos, imagens e estoques. Deixa a loja limpa para adicionar do zero.
               </p>
             </div>
             <button
@@ -358,7 +396,7 @@ export default function AdminSettingsPage() {
               onClick={() => handleSystemAction('wipe_products', 'PERIGO: Deseja EXCLUIR TODOS OS PRODUTOS do catálogo? Esta ação é definitiva.')}
               className="w-full py-2 bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-800 rounded-lg text-xs font-bold transition-colors"
             >
-              Limpar Todos os Produtos
+              Limpar Produtos
             </button>
           </div>
 
@@ -366,10 +404,10 @@ export default function AdminSettingsPage() {
           <div className="p-4 bg-neutral-50 rounded-xl border border-neutral-200 flex flex-col justify-between space-y-3">
             <div>
               <div className="flex items-center gap-1.5 font-bold text-xs text-neutral-900 mb-1">
-                <Download className="w-3.5 h-3.5 text-blue-600" /> Backup Completo (JSON)
+                <Download className="w-3.5 h-3.5 text-blue-600" /> Baixar Backup JSON
               </div>
               <p className="text-[11px] text-neutral-500">
-                Exporta o arquivo JSON completo com produtos, categorias, clientes e configurações.
+                Baixa o arquivo store_db.json completo com produtos, fotos e categorias.
               </p>
             </div>
             <button
@@ -377,8 +415,29 @@ export default function AdminSettingsPage() {
               onClick={handleDownloadBackup}
               className="w-full py-2 bg-blue-50 hover:bg-blue-100 border border-blue-300 text-blue-800 rounded-lg text-xs font-bold transition-colors"
             >
-              Baixar Backup JSON
+              Baixar Backup
             </button>
+          </div>
+
+          {/* Restore Database */}
+          <div className="p-4 bg-neutral-50 rounded-xl border border-neutral-200 flex flex-col justify-between space-y-3">
+            <div>
+              <div className="flex items-center gap-1.5 font-bold text-xs text-neutral-900 mb-1">
+                <Upload className="w-3.5 h-3.5 text-emerald-600" /> Restaurar Backup JSON
+              </div>
+              <p className="text-[11px] text-neutral-500">
+                Suba um arquivo store_db.json salvo anteriormente para restaurar tudo.
+              </p>
+            </div>
+            <label className="w-full py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-lg text-xs font-bold transition-colors text-center cursor-pointer block">
+              <span>Selecionar Arquivo JSON</span>
+              <input
+                type="file"
+                accept=".json,application/json"
+                onChange={handleRestoreJson}
+                className="hidden"
+              />
+            </label>
           </div>
         </div>
       </div>

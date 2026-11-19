@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { FolderTree, Plus, Edit, Trash2, X, CheckCircle } from 'lucide-react';
+import Image from 'next/image';
+import { FolderTree, Plus, Edit, Trash2, X, CheckCircle, ImageIcon } from 'lucide-react';
+import ImageUploader from '@/components/ImageUploader';
 
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<any[]>([]);
@@ -13,6 +15,7 @@ export default function AdminCategoriesPage() {
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [description, setDescription] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
   const [sortOrder, setSortOrder] = useState('0');
   const [isActive, setIsActive] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -38,6 +41,7 @@ export default function AdminCategoriesPage() {
     setName('');
     setSlug('');
     setDescription('');
+    setImageUrl('');
     setSortOrder((categories.length + 1).toString());
     setIsActive(true);
     setError('');
@@ -49,6 +53,7 @@ export default function AdminCategoriesPage() {
     setName(cat.name);
     setSlug(cat.slug);
     setDescription(cat.description || '');
+    setImageUrl(cat.imageUrl || '');
     setSortOrder(cat.sortOrder.toString());
     setIsActive(cat.isActive);
     setError('');
@@ -89,6 +94,7 @@ export default function AdminCategoriesPage() {
           name,
           slug,
           description,
+          imageUrl: imageUrl || null,
           sortOrder: parseInt(sortOrder, 10) || 0,
           isActive,
         }),
@@ -138,6 +144,7 @@ export default function AdminCategoriesPage() {
               <thead className="bg-neutral-50 text-neutral-600 border-b border-neutral-200 uppercase tracking-wider font-bold text-[10px]">
                 <tr>
                   <th className="py-3.5 px-4">Ordem</th>
+                  <th className="py-3.5 px-4">Capa</th>
                   <th className="py-3.5 px-4">Nome da Categoria</th>
                   <th className="py-3.5 px-4">Slug (URL)</th>
                   <th className="py-3.5 px-4">Descrição</th>
@@ -150,6 +157,17 @@ export default function AdminCategoriesPage() {
                 {categories.map((c) => (
                   <tr key={c.id} className="hover:bg-neutral-50/60 transition-colors">
                     <td className="py-3 px-4 font-mono font-bold text-neutral-500">#{c.sortOrder}</td>
+                    <td className="py-3 px-4">
+                      {c.imageUrl ? (
+                        <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-neutral-200 bg-neutral-100">
+                          <Image src={c.imageUrl} alt={c.name} fill className="object-cover" />
+                        </div>
+                      ) : (
+                        <div className="w-10 h-10 rounded-lg bg-neutral-100 flex items-center justify-center text-neutral-400 border border-neutral-200">
+                          <ImageIcon className="w-4 h-4" />
+                        </div>
+                      )}
+                    </td>
                     <td className="py-3 px-4 font-bold text-neutral-900">{c.name}</td>
                     <td className="py-3 px-4 font-mono text-neutral-500">{c.slug}</td>
                     <td className="py-3 px-4 text-neutral-600 truncate max-w-xs">{c.description || '-'}</td>
@@ -260,6 +278,17 @@ export default function AdminCategoriesPage() {
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Breve descrição da categoria..."
                   className="w-full px-3 py-2 text-xs border border-neutral-300 rounded-lg outline-none focus:border-black"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                  Foto de Capa da Categoria (Do PC ou Celular)
+                </label>
+                <ImageUploader
+                  images={imageUrl ? [imageUrl] : []}
+                  onChange={(imgs) => setImageUrl(imgs[0] || '')}
+                  maxImages={1}
                 />
               </div>
 

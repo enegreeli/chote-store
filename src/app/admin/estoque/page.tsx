@@ -81,6 +81,9 @@ function InventoryManagementContent() {
       });
       const data = await res.json();
       if (res.ok) {
+        localStorage.setItem('chote_master_db_explicitly_wiped', 'true');
+        localStorage.removeItem('chote_master_db_snapshot_v1');
+        localStorage.setItem('chote_master_db_count_v1', '0');
         setActionFeedback(data.message || 'Catálogo limpo com sucesso! Loja pronta para começar do zero.');
         fetchInventory();
         setTimeout(() => setActionFeedback(null), 4000);

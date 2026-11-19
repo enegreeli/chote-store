@@ -112,10 +112,13 @@ export default function NewProductPage() {
     e.preventDefault();
     setError('');
 
-    if (!name || !sku || !categoryId || !price) {
-      setError('Preencha os campos obrigatórios (Nome, SKU, Categoria, Preço).');
+    if (!name || !price) {
+      setError('Preencha pelo menos o Nome e o Preço do produto.');
       return;
     }
+
+    const finalSku = sku && sku.trim() ? sku.trim().toUpperCase() : `CK-${Date.now().toString(36).toUpperCase()}`;
+    const finalCategory = categoryId || categories[0]?.id || '';
 
     setLoading(true);
     try {
@@ -124,9 +127,9 @@ export default function NewProductPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name,
-          sku,
+          sku: finalSku,
           barcode,
-          categoryId,
+          categoryId: finalCategory,
           brand,
           team,
           country,

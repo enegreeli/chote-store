@@ -23,6 +23,7 @@ import {
   Shield,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import AdminAutoSync from '@/components/AdminAutoSync';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -219,7 +220,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </span>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <AdminAutoSync />
+
             {lowStockCount > 0 && (
               <Link
                 href="/admin/estoque?filter=low"

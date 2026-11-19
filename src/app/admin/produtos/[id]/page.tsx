@@ -118,15 +118,18 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
     setSuccess('');
     setSaving(true);
 
+    const finalSku = sku && sku.trim() ? sku.trim().toUpperCase() : `CK-${Date.now().toString(36).toUpperCase()}`;
+    const finalCategory = categoryId || categories[0]?.id || '';
+
     try {
       const res = await fetch(`/api/admin/products/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name,
-          sku,
+          sku: finalSku,
           barcode,
-          categoryId,
+          categoryId: finalCategory,
           brand,
           team,
           country,
