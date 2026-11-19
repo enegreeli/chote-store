@@ -109,12 +109,65 @@ class StoreDatabase {
           const fallbackPath = path.join(os.tmpdir(), 'store_db.json');
           this.dbPath = fallbackPath;
           fs.writeFileSync(fallbackPath, JSON.stringify(this.data, null, 2), 'utf-8');
-          return;
         } catch (fallbackErr) {
           console.error('Fallback save to os.tmpdir failed:', fallbackErr);
         }
+      } else {
+        console.error('StoreDatabase save error:', err);
       }
-      console.error('StoreDatabase save error:', err);
+    }
+
+    // Cloud sync if Vercel KV / Upstash Redis is connected
+    this.syncToCloud();
+  }
+
+  private syncToCloud(): void {
+    const kvUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+    const kvToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+    if (kvUrl && kvToken) {
+      try {
+        fetch(`${kvUrl}/set/chote_store_db`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${kvToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(this.data),
+        }).catch((e) => console.warn('KV sync error:', e));
+      } catch (err) {
+        console.warn('Could not dispatch KV sync:', err);
+      }
+    }
+  }
+
+  public async ensureFreshData(): Promise<void> {
+    const kvUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+    const kvToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+    if (kvUrl && kvToken) {
+      try {
+        const res = await fetch(`${kvUrl}/get/chote_store_db`, {
+          headers: { Authorization: `Bearer ${kvToken}` },
+          cache: 'no-store',
+        });
+        const json = await res.json();
+        if (json.result) {
+          const parsed = typeof json.result === 'string' ? JSON.parse(json.result) : json.result;
+          this.data = { ...this.getInitialData(), ...parsed };
+          try {
+            fs.writeFileSync(this.dbPath, JSON.stringify(this.data, null, 2), 'utf-8');
+          } catch {}
+          return;
+        }
+      } catch (err) {
+        // Fallback to local
+      }
+    }
+
+    if (fs.existsSync(this.dbPath)) {
+      try {
+        const content = fs.readFileSync(this.dbPath, 'utf-8');
+        this.data = { ...this.getInitialData(), ...JSON.parse(content) };
+      } catch {}
     }
   }
 
@@ -327,6 +380,7 @@ class StoreDatabase {
   private createDelegate(collectionKey: keyof StoreDbData) {
     return {
       findMany: async (args: any = {}) => {
+        await this.ensureFreshData();
         let items = this.data[collectionKey] || [];
         if (args.where) {
           items = items.filter((item) => this.matchesWhere(item, args.where, collectionKey));
@@ -341,6 +395,7 @@ class StoreDatabase {
       },
 
       findUnique: async (args: any = {}) => {
+        await this.ensureFreshData();
         const items = this.data[collectionKey] || [];
         const item = items.find((i) => this.matchesWhere(i, args.where, collectionKey));
         if (!item) return null;
@@ -348,6 +403,7 @@ class StoreDatabase {
       },
 
       findFirst: async (args: any = {}) => {
+        await this.ensureFreshData();
         const items = this.data[collectionKey] || [];
         const item = items.find((i) => this.matchesWhere(i, args.where, collectionKey));
         if (!item) return null;
@@ -355,6 +411,7 @@ class StoreDatabase {
       },
 
       count: async (args: any = {}) => {
+        await this.ensureFreshData();
         let items = this.data[collectionKey] || [];
         if (args.where) {
           items = items.filter((item) => this.matchesWhere(item, args.where, collectionKey));
@@ -363,6 +420,7 @@ class StoreDatabase {
       },
 
       create: async (args: any = {}) => {
+        await this.ensureFreshData();
         const data = { ...args.data };
         const id = data.id || generateId();
         const now = new Date().toISOString();
@@ -438,6 +496,7 @@ class StoreDatabase {
       },
 
       update: async (args: any = {}) => {
+        await this.ensureFreshData();
         const items = this.data[collectionKey] || [];
         const index = items.findIndex((i) => this.matchesWhere(i, args.where, collectionKey));
         if (index === -1) {
@@ -464,6 +523,7 @@ class StoreDatabase {
       },
 
       upsert: async (args: any = {}) => {
+        await this.ensureFreshData();
         const items = this.data[collectionKey] || [];
         const index = items.findIndex((i) => this.matchesWhere(i, args.where, collectionKey));
 
@@ -486,6 +546,7 @@ class StoreDatabase {
       },
 
       delete: async (args: any = {}) => {
+        await this.ensureFreshData();
         const items = this.data[collectionKey] || [];
         const index = items.findIndex((i) => this.matchesWhere(i, args.where, collectionKey));
         if (index === -1) return null;
@@ -516,6 +577,7 @@ class StoreDatabase {
       },
 
       deleteMany: async (args: any = {}) => {
+        await this.ensureFreshData();
         if (!args.where) {
           const count = this.data[collectionKey].length;
           this.data[collectionKey] = [];
